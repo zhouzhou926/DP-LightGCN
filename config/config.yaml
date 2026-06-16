@@ -1,28 +1,30 @@
-# 数据路径
+# ========== 数据路径 ==========
+# 真实数据集：data/yelp2018 或 data/gowalla 或 data/amazon-book
+# 合成数据：data/synthetic
 data_path: "./data/synthetic"
 dataset: ""
 
-# 模型参数
+# ========== 模型参数 ==========
 emb_dim: 64
 n_layers: 3
 
-# 训练参数
+# ========== 训练参数 ==========
 batch_size: 256
 epochs: 200
 lr: 0.001
 decay: 1e-4
 top_k: 20
 
-# 早停
+# ========== 早停 ==========
 early_stop_patience: 5
 eval_interval: 20
 
-# DP参数
-enable_dp: false
-epsilon: [1, 5, 10, 20, 50]
-delta: 1e-05
+# ========== 差分隐私参数 ==========
+enable_dp: false            # true=开启DP加噪，false=无DP基线
+epsilon: [1, 5, 10, 20, 50] # 多个epsilon跑对比实验
+delta: 1.0e-05
 sensitivity: 1.0
-budget_strategy: "adaptive"
+budget_strategy: "adaptive" # uniform / decreasing / adaptive
 
-# 随机种子
+# ========== 随机种子 ==========
 seed: 2024

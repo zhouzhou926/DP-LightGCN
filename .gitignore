@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -6,15 +6,16 @@ __pycache__/
 dist/
 build/
 
-# 环境
+# 虚拟环境
 venv/
 .venv/
 env/
 
-# 数据
+# 数据（不上传原始数据）
 data/*
+!data/.gitkeep
 
-# 结果
+# 实验结果
 results/
 
 # IDE
