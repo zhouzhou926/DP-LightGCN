@@ -1,13 +1,6 @@
 """
 DPLightGCN 训练主脚本
-支持：
-  - 无DP基线（LightGCN）
-  - DP-LightGCN（uniform / decreasing / adaptive）
-  - 多epsilon扫描
-  - 早停
-  - 实验结果记录
 """
-
 import os
 import sys
 import argparse
@@ -37,7 +30,7 @@ class Trainer:
         n_inter = sum(len(items) for _, items in self.dataset.train_data)
         print(f"  Interactions: {n_inter}")
 
-    def train_epoch(self, model, optimizer):
+    def train_epoch(self, model, optimizer, apply_dp=True):
         model.train()
         total_loss = 0
         n_batches = 0
@@ -50,14 +43,15 @@ class Trainer:
             pos_items = pos_items.to(self.device)
             neg_items = neg_items.to(self.device)
             optimizer.zero_grad()
-            loss = model.bpr_loss(users, pos_items, neg_items, adj_matrix)
+            loss = model.bpr_loss(users, pos_items, neg_items, adj_matrix, apply_dp=apply_dp)
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
             n_batches += 1
         return total_loss / max(1, n_batches)
 
-    def evaluate(self, model):
+    def evaluate(self, model, apply_dp=True):
+        # 评估时不加噪（加噪只在训练时）
         return get_metrics(model, self.dataset, self.sampler, top_k_list=[20], device=self.device)
 
     def run_experiment(self, epsilon, budget_strategy, enable_dp=True):
@@ -65,26 +59,18 @@ class Trainer:
         print(f"\n{sep}")
         print(f"Experiment: epsilon={epsilon}, strategy={budget_strategy}, dp={enable_dp}")
         print(f"{sep}")
-        if enable_dp:
-            model = DPLightGCN(
-                self.dataset.n_users, self.dataset.n_items,
-                self.config.emb_dim, self.config.n_layers,
-                epsilon=epsilon, delta=self.config.delta,
-                budget_strategy=budget_strategy,
-            ).to(self.device)
-        else:
-            model = DPLightGCN(
-                self.dataset.n_users, self.dataset.n_items,
-                self.config.emb_dim, self.config.n_layers,
-                epsilon=1e8, delta=self.config.delta,
-                budget_strategy="uniform",
-            ).to(self.device)
+        model = DPLightGCN(
+            self.dataset.n_users, self.dataset.n_items,
+            self.config.emb_dim, self.config.n_layers,
+            epsilon=epsilon, delta=self.config.delta,
+            budget_strategy=budget_strategy,
+        ).to(self.device)
         optimizer = optim.Adam(model.parameters(), lr=self.config.lr, weight_decay=0)
         best_recall = -1
         patience_counter = 0
         for epoch in range(1, self.config.epochs + 1):
             t_start = time.time()
-            loss = self.train_epoch(model, optimizer)
+            loss = self.train_epoch(model, optimizer, apply_dp=enable_dp)
             if epoch % self.config.eval_interval == 0:
                 results = self.evaluate(model)
                 recall = results.get("Recall@20", 0)
@@ -136,11 +122,14 @@ def main():
     if args.no_dp:
         cfg.enable_dp = False
     trainer = Trainer(cfg)
-    if args.epsilon is not None:
-        trainer.run_experiment(epsilon=args.epsilon, budget_strategy=args.strategy or cfg.budget_strategy, enable_dp=not args.no_dp)
+    if args.epsilon is not None or args.no_dp:
+        trainer.run_experiment(
+            epsilon=args.epsilon or 1e8,
+            budget_strategy=args.strategy or cfg.budget_strategy,
+            enable_dp=not args.no_dp,
+        )
     else:
         trainer.run_full_comparison()
-
 
 if __name__ == "__main__":
     main()
