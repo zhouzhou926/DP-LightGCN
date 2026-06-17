@@ -15,6 +15,10 @@ class LightGCNDataset(Dataset):
         self.train_data, self.test_data = self._load_data()
         self.n_users, self.n_items = self._get_statics()
         self.adj_matrix = self._build_adj_matrix()
+        # 为快速评测建立用户索引
+        self.test_data_idx = {}
+        for user, items in self.test_data:
+            self.test_data_idx[user] = (set(items), len(items))
 
     def _load_data(self):
         train_data = []
@@ -22,16 +26,14 @@ class LightGCNDataset(Dataset):
         with open(os.path.join(self.data_path, "train.txt"), 'r') as f:
             for line in f:
                 parts = line.strip().split()
-                if len(parts) < 2:
-                    continue
+                if len(parts) < 2: continue
                 user = int(parts[0])
                 items = [int(x) for x in parts[1:]]
                 train_data.append((user, items))
         with open(os.path.join(self.data_path, "test.txt"), 'r') as f:
             for line in f:
                 parts = line.strip().split()
-                if len(parts) < 2:
-                    continue
+                if len(parts) < 2: continue
                 user = int(parts[0])
                 items = [int(x) for x in parts[1:]]
                 test_data.append((user, items))
@@ -85,7 +87,6 @@ class BatchSampler:
         self.dataset = dataset
         self.n_neg = n_neg
         self.users = [u for u, items in dataset.train_data]
-        self.pos_items = [items for _, items in dataset.train_data]
         self.user_pos_dict = {}
         for u, items in dataset.train_data:
             self.user_pos_dict[u] = set(items)

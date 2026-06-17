@@ -1,28 +1,20 @@
-# ========== 数据路径 ==========
-data_path: "./data/gowalla"
-dataset: ""
-
-# ========== 模型参数 ==========
-emb_dim: 64
-n_layers: 3
-
-# ========== 训练参数 ==========
 batch_size: 2048
-epochs: 200
-lr: 0.001
-decay: 1e-4
-top_k: 20
-
-# ========== 早停 ==========
-early_stop_patience: 5
-eval_interval: 20
-
-# ========== 差分隐私参数 ==========
-enable_dp: false
-epsilon: [10]
+budget_strategy: adaptive
+data_path: ./data/gowalla
+dataset: ''
+decay: 0.0001
 delta: 1.0e-05
-sensitivity: 1.0
-budget_strategy: "adaptive"
-
-# ========== 随机种子 ==========
+early_stop_patience: 8
+emb_dim: 64
+enable_dp: true
+epochs: 100
+epsilon:
+- 5
+- 10
+- 20
+eval_interval: 20
+lr: 0.001
+n_layers: 3
 seed: 2024
+sensitivity: 1.0
+top_k: 20

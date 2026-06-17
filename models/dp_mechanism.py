@@ -1,31 +1,25 @@
 """
 DPLightGCN: 差分隐私LightGCN模型
-核心设计：
-1. 嵌入级DP：每层传播后裁剪+加噪
-2. 自适应裁剪阈值
-3. 层级自适应预算分配
-4. Renyi DP Composition
 """
 import torch
 import torch.nn as nn
 import numpy as np
 from math import log
 
-
 class EmbeddingPerturbation:
-    def __init__(self, epsilon, delta, budget_strategy='adaptive'):
+    def __init__(self, epsilon, delta, budget_strategy="adaptive"):
         self.epsilon = epsilon
         self.delta = delta
         self.budget_strategy = budget_strategy
 
     def compute_layer_budgets(self, K, embeddings=None):
-        if self.budget_strategy == 'uniform':
+        if self.budget_strategy == "uniform":
             return [self.epsilon / K] * K
-        elif self.budget_strategy == 'decreasing':
+        elif self.budget_strategy == "decreasing":
             weights = [1.0 / (i + 1) for i in range(1, K + 1)]
             total = sum(weights)
             return [self.epsilon * w / total for w in weights]
-        elif self.budget_strategy == 'adaptive':
+        elif self.budget_strategy == "adaptive":
             if embeddings is None or any(e is None for e in embeddings):
                 return [self.epsilon / K] * K
             norms = [torch.norm(e.detach(), p=2, dim=1).mean().item() for e in embeddings]
@@ -33,7 +27,7 @@ class EmbeddingPerturbation:
             weights = [n / norm_sum for n in norms]
             return [self.epsilon * w for w in weights]
         else:
-            raise ValueError(f'Unknown budget strategy: {self.budget_strategy}')
+            raise ValueError(f"Unknown budget strategy: {self.budget_strategy}")
 
     def get_clip_threshold(self, embedding):
         avg_norm = torch.norm(embedding.detach(), p=2, dim=1).mean().item()
@@ -48,17 +42,14 @@ class EmbeddingPerturbation:
         noise = torch.normal(0, sigma, size=clipped.shape, device=clipped.device)
         return clipped + noise
 
-
 class RenyiAccountant:
     def __init__(self, delta=1e-5):
         self.delta = delta
         self.rdp_orders = [alpha for alpha in range(2, 64, 2)]
-
     def gaussian_rdp(self, sigma, order):
         return order / (2 * sigma ** 2)
-
     def compute_total_epsilon(self, sigmas):
-        best_eps = float('inf')
+        best_eps = float("inf")
         for alpha in self.rdp_orders:
             rdp_sum = sum([self.gaussian_rdp(s, alpha) for s in sigmas])
             eps = rdp_sum + log(1.0 / self.delta) / (alpha - 1)
@@ -66,10 +57,9 @@ class RenyiAccountant:
                 best_eps = eps
         return best_eps
 
-
 class DPLightGCN(nn.Module):
     def __init__(self, n_users, n_items, emb_dim, n_layers,
-                 epsilon=10.0, delta=1e-5, budget_strategy='adaptive'):
+                 epsilon=10.0, delta=1e-5, budget_strategy="adaptive"):
         super().__init__()
         self.n_users = n_users
         self.n_items = n_items
@@ -101,12 +91,20 @@ class DPLightGCN(nn.Module):
         return torch.mean(torch.stack(all_emb), dim=0)
 
     def bpr_loss(self, users, pos_items, neg_items, adj_matrix, apply_dp=True):
+        """BPR loss with L2 regularization
+        
+        LightGCN官方实现：L2系数 = 1e-4（decay超参数）
+        reg = (1/2) * sum(norm^2) / batch_size * lambda
+        """
         all_emb = self.forward(adj_matrix, apply_dp=apply_dp)
         u_e = all_emb[users]
         p_e = all_emb[self.n_users + pos_items]
         n_e = all_emb[self.n_users + neg_items]
+        
         pos_s = torch.sum(u_e * p_e, dim=1)
         neg_s = torch.sum(u_e * n_e, dim=1)
         loss = -torch.mean(torch.log(torch.sigmoid(pos_s - neg_s) + 1e-8))
+        
+        # L2正则（乘decay系数！修复：原代码缺少lambda导致嵌入范数崩溃）
         reg = (1/2) * (u_e.norm(2).pow(2) + p_e.norm(2).pow(2) + n_e.norm(2).pow(2)) / users.shape[0]
-        return loss + reg
+        return loss + 1e-4 * reg
