@@ -1,13 +1,13 @@
 batch_size: 2048
 budget_strategy: adaptive
-data_path: ./data/yelp2018
+data_path: ./data/amazon-book
 dataset: ''
 decay: 0.0001
 delta: 1.0e-05
-early_stop_patience: 8
+early_stop_patience: 10
 emb_dim: 64
 enable_dp: true
-epochs: 100
+epochs: 60
 epsilon:
 - 5
 - 10
