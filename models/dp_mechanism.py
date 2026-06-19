@@ -27,7 +27,7 @@ class EmbeddingPerturbation:
             weights = [n / norm_sum for n in norms]
             return [self.epsilon * w for w in weights]
         else:
-            raise ValueError(f"Unknown budget strategy: {self.budget_strategy}")
+            raise ValueError(f"Unknown: {self.budget_strategy}")
 
     def get_clip_threshold(self, embedding):
         avg_norm = torch.norm(embedding.detach(), p=2, dim=1).mean().item()
@@ -61,23 +61,21 @@ class DPLightGCN(nn.Module):
     def __init__(self, n_users, n_items, emb_dim, n_layers,
                  epsilon=10.0, delta=1e-5, budget_strategy="adaptive"):
         super().__init__()
-        self.n_users = n_users
-        self.n_items = n_items
-        self.n_layers = n_layers
-        self.emb_dim = emb_dim
-        self.epsilon = epsilon
-        self.delta = delta
+        self.n_users = n_users; self.n_items = n_items
+        self.n_layers = n_layers; self.emb_dim = emb_dim
+        self.epsilon = epsilon; self.delta = delta
+        self.budget_strategy = budget_strategy
         self.user_embedding = nn.Embedding(n_users, emb_dim)
         self.item_embedding = nn.Embedding(n_items, emb_dim)
         nn.init.normal_(self.user_embedding.weight, std=0.1)
         nn.init.normal_(self.item_embedding.weight, std=0.1)
-        self.perturbator = EmbeddingPerturbation(epsilon=epsilon, delta=delta, budget_strategy=budget_strategy)
+        self.perturbator = EmbeddingPerturbation(
+            epsilon=epsilon, delta=delta, budget_strategy=budget_strategy)
 
     def forward(self, adj_matrix, apply_dp=True):
         ego = torch.cat([self.user_embedding.weight, self.item_embedding.weight])
         all_emb = [ego]
-        layer_emb = []
-        tmp = ego
+        layer_emb = []; tmp = ego
         with torch.no_grad():
             for _ in range(self.n_layers):
                 tmp = torch.sparse.mm(adj_matrix, tmp)
@@ -91,20 +89,10 @@ class DPLightGCN(nn.Module):
         return torch.mean(torch.stack(all_emb), dim=0)
 
     def bpr_loss(self, users, pos_items, neg_items, adj_matrix, apply_dp=True):
-        """BPR loss with L2 regularization
-        
-        LightGCN官方实现：L2系数 = 1e-4（decay超参数）
-        reg = (1/2) * sum(norm^2) / batch_size * lambda
-        """
         all_emb = self.forward(adj_matrix, apply_dp=apply_dp)
-        u_e = all_emb[users]
-        p_e = all_emb[self.n_users + pos_items]
+        u_e = all_emb[users]; p_e = all_emb[self.n_users + pos_items]
         n_e = all_emb[self.n_users + neg_items]
-        
-        pos_s = torch.sum(u_e * p_e, dim=1)
-        neg_s = torch.sum(u_e * n_e, dim=1)
+        pos_s = torch.sum(u_e * p_e, dim=1); neg_s = torch.sum(u_e * n_e, dim=1)
         loss = -torch.mean(torch.log(torch.sigmoid(pos_s - neg_s) + 1e-8))
-        
-        # L2正则（乘decay系数！修复：原代码缺少lambda导致嵌入范数崩溃）
-        reg = (1/2) * (u_e.norm(2).pow(2) + p_e.norm(2).pow(2) + n_e.norm(2).pow(2)) / users.shape[0]
+        reg = (1/2)*(u_e.norm(2).pow(2)+p_e.norm(2).pow(2)+n_e.norm(2).pow(2))/users.shape[0]
         return loss + 1e-4 * reg
