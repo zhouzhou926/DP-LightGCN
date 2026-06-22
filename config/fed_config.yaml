@@ -1,0 +1,9 @@
+batch_size: 2048
+data_path: ./data/gowalla
+dataset: ''
+decay: 0.0001
+emb_dim: 64
+epochs: 1
+lr: 0.001
+n_layers: 3
+top_k: 20

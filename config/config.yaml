@@ -1,20 +1,27 @@
+# ========== 数据集选择 ==========
+dataset: gowalla  # gowalla | amazon-book | yelp2018
+
+data:
+  gowalla: ./data/gowalla
+  amazon-book: ./data/amazon-book
+  yelp2018: ./data/yelp2018
+
+# ========== 训练超参数 ==========
 batch_size: 2048
-budget_strategy: adaptive
-data_path: ./data/gowalla
-dataset: ''
-decay: 0.0001
-delta: 1.0e-05
-early_stop_patience: 8
-emb_dim: 64
-enable_dp: false
-epochs: 100
-epsilon:
-- 5
-- 10
-- 20
-eval_interval: 20
 lr: 0.001
+emb_dim: 64
 n_layers: 3
-seed: 2024
-sensitivity: 1.0
+epochs: 100
+eval_interval: 10
+early_stop_patience: 8
+decay: 0.0
+
+# ========== 差分隐私参数 ==========
+delta: 1.0e-05
+
+# ========== 实验配置 ==========
+epsilons: [5, 10, 20]
+strategies: ["uniform", "decreasing", "adaptive"]
+n_seeds: 2
+seed_base: 2024
 top_k: 20
