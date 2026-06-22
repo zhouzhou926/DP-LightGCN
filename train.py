@@ -172,7 +172,7 @@ class Trainer:
         print("=" * 70)
         print(f"[Summary] Final Results: {self.config.dataset}")
         print("=" * 70)
-        print(f"{'Model':<25s} {'eps':>5s}     {'Recall@'+str(K):>16s} {'NDCG@'+str(K):>16s}")
+        header_str = "Model".ljust(25) + "eps".rjust(5) + "     " + ("Recall@"+str(K)).rjust(16) + " " + ("NDCG@"+str(K)).rjust(16)
         print("-" * 70)
         for mk in ["LightGCN(NoDP)", "uniform", "decreasing", "adaptive"]:
             if mk not in all_results:

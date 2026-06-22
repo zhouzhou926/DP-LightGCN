@@ -1,5 +1,5 @@
 # ========== 数据集选择 ==========
-dataset: gowalla  # gowalla | amazon-book | yelp2018
+dataset: amazon-book
 
 data:
   gowalla: ./data/gowalla
@@ -20,8 +20,8 @@ decay: 0.0
 delta: 1.0e-05
 
 # ========== 实验配置 ==========
-epsilons: [5, 10, 20]
-strategies: ["uniform", "decreasing", "adaptive"]
-n_seeds: 2
+epsilons: [5, 20]
+strategies: ["adaptive"]
+n_seeds: 1
 seed_base: 2024
 top_k: 20
